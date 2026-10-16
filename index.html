@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mi Tienda - Pedidos por WhatsApp</title>
+    <style>
+        :root {
+            --blanco-roto: #fbf9f5;
+            --rosa-chicle: #ff6097;
+            --rosa-oscuro: #e0447b;
+            --rosa-pastel: #ffe3ec;
+            --texto-oscuro: #2b2b2b;
+            --blanco-puro: #ffffff;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        body { background-color: var(--blanco-roto); color: var(--texto-oscuro); padding-bottom: 120px; }
+        header { background-color: var(--blanco-puro); text-align: center; padding: 30px 20px; border-bottom: 3px solid var(--rosa-pastel); }
+        .logo-container { margin-bottom: 15px; display: flex; justify-content: center; }
+        .logo-placeholder { border: 3px dashed var(--rosa-chicle); padding: 10px 25px; border-radius: 50px; color: var(--rosa-chicle); font-size: 1.8rem; font-weight: bold; background-color: var(--blanco-roto); }
+        header h1 { color: var(--rosa-chicle); font-size: 2.2rem; margin-bottom: 8px; }
+        header p { color: #666; font-size: 1rem; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .category-title { color: var(--rosa-chicle); border-left: 5px solid var(--rosa-chicle); padding-left: 12px; margin: 40px 0 20px 0; font-size: 1.6rem; }
+        .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 25px; }
+        .product-card { background-color: var(--blanco-puro); border: 1px solid var(--rosa-pastel); border-radius: 15px; padding: 20px; display: flex; flex-direction: column; justify-content: space-between; }
+        .product-name { font-size: 1.1rem; font-weight: 600; margin-bottom: 10px; min-height: 44px; display: flex; align-items: center; }
+        .product-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 15px; }
+        .product-price { font-size: 1.3rem; font-weight: bold; color: var(--rosa-chicle); }
+        .btn-add { background-color: var(--rosa-chicle); color: var(--blanco-puro); border: none; padding: 10px 16px; border-radius: 20px; font-weight: bold; cursor: pointer; }
+        .btn-add:hover { background-color: var(--rosa-oscuro); }
+        .cart-bar { position: fixed; bottom: 0; left: 0; right: 0; background-color: var(--blanco-puro); box-shadow: 0 -5px 25px rgba(0,0,0,0.1); padding: 20px; display: flex; justify-content: space-between; align-items: center; z-index: 1000; border-top: 2px solid var(--rosa-pastel); }
+        .cart-info { font-size: 1.1rem; }
+        .cart-info span { font-weight: bold; color: var(--rosa-chicle); }
+        .btn-order { background-color: #25D366; color: white; border: none; padding: 14px 28px; border-radius: 30px; font-size: 1.1rem; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 10px; }
+        .btn-order:disabled { background-color: #cccccc; cursor: not-allowed; }
+        @media (max-width: 600px) { .cart-bar { flex-direction: column; gap: 15px; } .btn-order { width: 100%; justify-content: center; } }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo-container"><div class="logo-placeholder">🌸 MI PAPELERÍA & REGALOS 🌸</div></div>
+        <h1>Catálogo & Pedidos Directos</h1>
+        <p>Elige tus artículos y recíbelos enviando el carrito a nuestro WhatsApp</p>
+    </header>
+    <div class="container" id="catalog-container"></div>
+    <div class="cart-bar">
+        <div class="cart-info">Artículos seleccionados: <span id="cart-count">0</span> | Total: <span id="cart-total">0.00€</span></div>
+        <button class="btn-order" id="btn-whatsapp" disabled onclick="sendOrder()">Enviar Pedido por WhatsApp</button>
+    </div>
+    <script>
+        const TELEFONO_WHATSAPP = "34623128060"; 
+        const productos = [
+            { id: 1, name: "10 Lápices Noris 120 (Pack)", price: 8.71, cat: "Papelería Escolar y Oficina" },
+            { id: 2, name: "2 Tipp-Ex Shake's (Pack)", price: 4.70, cat: "Papelería Escolar y Oficina" },
+            { id: 3, name: "20 Bic Cristal Standard (Pack)", price: 6.83, cat: "Papelería Escolar y Oficina" },
+            { id: 4, name: "200 Fundas Multitaladro (Pack)", price: 4.66, cat: "Papelería Escolar y Oficina" },
+            { id: 5, name: "24 Rotuladores Kid (Pack)", price: 4.33, cat: "Papelería Escolar y Oficina" },
+            { id: 6, name: "3+1 Cuadernos F° 80 (Pack)", price: 15.19, cat: "Papelería Escolar y Oficina" },
+            { id: 7, name: "4 Marcadores Boss (Pack)", price: 5.83, cat: "Papelería Escolar y Oficina" },
+            { id: 8, name: "5 Bolis Bic Surtido (Pack)", price: 2.25, cat: "Papelería Escolar y Oficina" },
+            { id: 9, name: "5 Gomas de Borrar (Pack)", price: 3.23, cat: "Papelería Escolar y Oficina" },
+            { id: 10, name: "Boli 4 Colores Madera", price: 2.91, cat: "Papelería Escolar y Oficina" },
+            { id: 11, name: "Bolis Pilot (Unidad)", price: 1.00, cat: "Papelería Escolar y Oficina" },
+            { id: 12, name: "Calculadora Solar", price: 6.21, cat: "Papelería Escolar y Oficina" },
+            { id: 13, name: "Carpeta 4 Anillas", price: 8.47, cat: "Papelería Escolar y Oficina" },
+            { id: 14, name: "Cuaderno 4° 80 Hojas", price: 4.33, cat: "Papelería Escolar y Oficina" },
+            { id: 15, name: "Cuaderno Espiral Indi", price: 4.48, cat: "Papelería Escolar y Oficina" },
+            { id: 16, name: "Cuadernos Grandes", price: 1.00, cat: "Papelería Escolar y Oficina" },
+            { id: 17, name: "Cuadernos Pequeños", price: 0.50, cat: "Papelería Escolar y Oficina" },
+            { id: 18, name: "Goma Eva A4 Colores", price: 5.83, cat: "Papelería Escolar y Oficina" },
+            { id: 19, name: "Paquete 500 Folios A4", price: 4.66, cat: "Papelería Escolar y Oficina" },
+            { id: 20, name: "Pegamento 3 Pritt Stick 11 gr", price: 6.41, cat: "Papelería Escolar y Oficina" },
+            { id: 21, name: "Pegamento Pritt Stick 22 gr", price: 8.71, cat: "Papelería Escolar y Oficina" },
+            { id: 22, name: "Portaminas Atlantis", price: 2.50, cat: "Papelería Escolar y Oficina" },
+            { id: 23, name: "Recambio A4 200 + 50", price: 8.89, cat: "Papelería Escolar y Oficina" },
+            { id: 24, name: "Recambio A4 Rayas", price: 0.50, cat: "Papelería Escolar y Oficina" },
+            { id: 25, name: "Regla 15cm Twist'n", price: 3.48, cat: "Papelería Escolar y Oficina" },
+            { id: 26, name: "Sacapuntas Croc Easy", price: 4.48, cat: "Papelería Escolar y Oficina" },
+            { id: 27, name: "Separador 10 Posiciones", price: 5.81, cat: "Papelería Escolar y Oficina" },
+            { id: 28, name: "Tijeras", price: 0.75, cat: "Papelería Escolar y Oficina" },
+            { id: 29, name: "Tippex Mouse 2 + 1", price: 4.85, cat: "Papelería Escolar y Oficina" },
+
+            // CATEGORÍA: REGALOS PERSONALIZADOS Y COMPLEMENTOS
+            { id: 30, name: "Agendas o Libretas", price: 9.30, cat: "Regalos Personalizados y Accesorios" },
+            { id: 31, name: "Alfombrilla de Ratón", price: 13.00, cat: "Regalos Personalizados y Accesorios" },
+            { id: 32, name: "Azulejos", price: 10.20, cat: "Regalos Personalizados y Accesorios" },
+            { id: 33, name: "Bodys de Bebés", price: 5.00, cat: "Regalos Personalizados y Accesorios" },
+            { id: 34, name: "Bolas de Navidad Plana", price: 12.75, cat: "Regalos Personalizados y Accesorios" },
+            { id: 35, name: "Bolsa de Tela", price: 14.00, cat: "Regalos Personalizados y Accesorios" },
+            { id: 36, name: "Botellas", price: 15.00, cat: "Regalos Personalizados y Accesorios" },
+            { id: 37, name: "Camisetas de Hombre", price: 11.00, cat: "Regalos Personalizados y Accesorios" },
+            { id: 38, name: "Camisetas de Mujer", price: 9.00, cat: "Regalos Personalizados y Accesorios" },
+            { id: 39, name: "Camisetas de Niño/a", price: 7.00, cat: "Regalos Personalizados y Accesorios" },
+            { id: 40, name: "Cesta Recién Nacida/o", price: 35.00, cat: "Regalos Personalizados y Accesorios" },
+            { id: 41, name: "Cestas Aniversario", price: 50.00, cat: "Regalos Personalizados y Accesorios" },
+            { id: 42, name: "Chupeteros", price: 10.00, cat: "Regalos Personalizados y Accesorios" },
+            { id: 43, name: "Chupetes", price: 8.00, cat: "Regalos Personalizados y Accesorios" },
+            { id: 44, name: "Chupetes y Chupeteros", price: 15.00, cat: "Regalos Personalizados y Accesorios" },
+            { id: 45, name: "Collares", price: 8.00, cat: "Regalos Personalizados y Accesorios" },
+            { id: 46, name: "Copas", price: 14.00, cat: "Regalos Personalizados y Accesorios" },
+            { id: 47, name: "Cuadernos", price: 6.00, cat: "Regalos Personalizados y Accesorios" },
+            { id: 48, name: "Etiquetas de Regalos", price: 3.00, cat: "Regalos Personalizados y Accesorios" },
+            { id: 49, name: "Fundas de Móviles", price: 8.00, cat: "Regalos Personalizados y Accesorios" },
+            { id: 50, name: "Gorros Infantiles", price: 9.00, cat: "Regalos Personalizados y Accesorios" },
+            { id: 51, name: "Huchas", price: 12.00, cat: "Regalos Personalizados y Accesorios" },
+            { id: 52, name: "Llavero de Madera", price: 8.00, cat: "Regalos Personalizados y Accesorios" },
+            { id: 53, name: "Llavero de Silicona", price: 8.00, cat: "Regalos Personalizados y Accesorios" },
+            { id: 54, name: "Llavero Pequeño", price: 3.00, cat: "Regalos Personalizados y Accesorios" },
+            { id: 55, name: "Llavero Sublimado", price: 10.00, cat: "Regalos Personalizados y Accesorios" },
+            { id: 56, name: "Marcapáginas", price: 4.00, cat: "Regalos Personalizados y Accesorios" },
+            { id: 57, name: "Marcapáginas de Vinilo", price: 6.00, cat: "Regalos Personalizados y Accesorios" },
+            { id: 58, name: "Mochilas", price: 23.00, cat: "Regalos Personalizados y Accesorios" },
+            { id: 59, name: "Pañuelos para Mascotas", price: 11.40, cat: "Regalos Personalizados y Accesorios" },
+            { id: 60, name: "Pendientes", price: 4.00, cat: "Regalos Personalizados y Accesorios" },
+            { id: 61, name: "Pendientes y Collares", price: 11.00, cat: "Regalos Personalizados y Accesorios" },
+            { id: 62, name: "Postales", price: 5.00, cat: "Regalos Personalizados y Accesorios" },
+            { id: 63, name: "Postales en 3-D", price: 7.00, cat: "Regalos Personalizados y Accesorios" },
+            { id: 64, name: "Pulseras", price: 6.00, cat: "Regalos Personalizados y Accesorios" },
+            { id: 65, name: "Pulseras y Pendientes", price: 8.00, cat: "Regalos Personalizados y Accesorios" },
+            { id: 66, name: "Pulseras y Pendientes y Collares", price: 16.00, cat: "Regalos Personalizados y Accesorios" },
+            { id: 67, name: "Tazas", price: 12.00, cat: "Regalos Personalizados y Accesorios" },
+            { id: 68, name: "Tazas de Asa de Corazón", price: 13.00, cat: "Regalos Personalizados y Accesorios" },
+            { id: 69, name: "Tazas de Color Dorada", price: 16.00, cat: "Regalos Personalizados y Accesorios" },
+            { id: 70, name: "Termos", price: 14.00, cat: "Regalos Personalizados y Accesorios" },
+            { id: 71, name: "Vidrios", price: 11.00, cat: "Regalos Personalizados y Accesorios" },
+
+            // CATEGORÍA: IMPRESIÓN, SERVICIOS Y EVENTOS
+            { id: 72, name: "Envío de Email", price: 0.50, cat: "Impresión y Servicios para Eventos" },
+            { id: 73, name: "Imprimir en Blanco y Negro", price: 0.20, cat: "Impresión y Servicios para Eventos" },
+            { id: 74, name: "Imprimir en Color", price: 0.45, cat: "Impresión y Servicios para Eventos" },
+            { id: 75, name: "Imprimir Fotos", price: 0.80, cat: "Impresión y Servicios para Eventos" },
+            { id: 76, name: "Plastificación de Documentos", price: 2.00, cat: "Impresión y Servicios para Eventos" },
+            { id: 77, name: "Encuadernación", price: 16.35, cat: "Impresión y Servicios para Eventos" },
+            { id: 78, name: "Kits de Eventos Básicos", price: 120.00, cat: "Impresión y Servicios para Eventos" },
+            { id: 79, name: "Kits de Eventos Celebración", price: 350.00, cat: "Impresión y Servicios para Eventos" },
+            { id: 80, name: "Kits de Eventos Premium", price: 700.00, cat: "Impresión y Servicios para Eventos" },
+            { id: 81, name: "Montaje del Kits", price: 50.00, cat: "Impresión y Servicios para Eventos" },
+            { id: 82, name: "Soporte para Caramelos", price: 10.00, cat: "Impresión y Servicios para Eventos" },
+            { id: 83, name: "Tarjetas Plegadas", price: 6.00, cat: "Impresión y Servicios para Eventos" },
+            { id: 84, name: "Vinilo para Coches", price: 20.00, cat: "Impresión y Servicios para Eventos" }
+        ];
+
+        const cart = {};
+
+        function renderCatalog() {
+            const container = document.getElementById('catalog-container');
+            const categorias = [...new Set(productos.map(p => p.cat))];
+            
+            categorias.forEach(cat => {
+                const title = document.createElement('h2');
+                title.className = 'category-title';
+                title.innerText = cat;
+                container.appendChild(title);
+
+                const grid = document.createElement('div');
+                grid.className = 'products-grid';
+
+                const filtered = productos.filter(p => p.cat === cat);
+                filtered.forEach(p => {
+                    const card = document.createElement('div');
+                    card.className = 'product-card';
+                    card.innerHTML = `
+                        <div class="product-name">${p.name}</div>
+                        <div class="product-actions">
+                            <div class="product-price">${p.price.toFixed(2)}€</div>
+                            <button class="btn-add" onclick="addToCart(${p.id})">Añadir</button>
+                        </div>
+                    `;
+                    grid.appendChild(card);
+                });
+                container.appendChild(grid);
+            });
+        }
+
+        function addToCart(id) {
+            cart[id] = (cart[id] || 0) + 1;
+            updateCartBar();
+        }
+
+        function updateCartBar() {
+            let totalItems = 0;
+            let totalPrice = 0;
+
+            for (const id in cart) {
+                const prod = productos.find(p => p.id == id);
+                totalItems += cart[id];
+                totalPrice += prod.price * cart[id];
+            }
+
+            document.getElementById('cart-count').innerText = totalItems;
+            document.getElementById('cart-total').innerText = totalPrice.toFixed(2) + '€';
+            document.getElementById('btn-whatsapp').disabled = totalItems === 0;
+        }
+
+        function sendOrder() {
+            let textoMensaje = "🌸 ¡Hola! Me gustaría realizar el siguiente pedido:\n\n";
+            let totalPrice = 0;
+
+            for (const id in cart) {
+                const prod = productos.find(p => p.id == id);
+                const subtotal = prod.price * cart[id];
+                totalPrice += subtotal;
+                textoMensaje += `▪️ *${cart[id]}x* ${prod.name} (${prod.price.toFixed(2)}€ c/u) → *${subtotal.toFixed(2)}€*\n`;
+            }
+
+            textoMensaje += `\n💰 *Total del pedido: ${totalPrice.toFixed(2)}€*`;
+            
+            const urlText = encodeURIComponent(textoMensaje);
+            const whatsappUrl = `https://wa.me{TELEFONO_WHATSAPP}?text=${urlText}`;
+            window.open(whatsappUrl, '_blank');
+        }
+
+        window.onload = renderCatalog;
+    </script>
+</body>
+</html>
